@@ -1,0 +1,276 @@
+courtsf <- sf::st_as_sfc(sf::st_bbox(c(xmin = -250, xmax = 250, ymax = 470, ymin = 0)))
+> courtgrid <- sf::st_make_grid(courtsf, what = "polygons", cellsize = 20) %>%
++     sf::st_cast("MULTIPOLYGON") %>%
++     sf::st_sf() %>%
++     dplyr::mutate(cellid = dplyr::row_number())
+> ggplot() + geom_path(
++     data = court_points,
++     aes(x = x, y = y, group = desc),
++     color = "black"
++ ) + coord_equal() + theme_empty() +
++     theme(
++         panel.grid = element_blank(),
++         axis.text = element_blank()
++     ) +
++     ggplot(courtgrid) + geom_sf() + geom_path(
++         data = court_points,
++         aes(x = x, y = y, group = desc),
++         color = "black"
++     ) +
++     theme(
++         panel.grid = element_blank(),
++         axis.text = element_blank()
++     )
+> get_richness <- function(playersSpatialDFs) {
++     shot_richness <- courtgrid %>%
++         sf::st_join(playersSpatialDFs) %>%
++         dplyr::group_by(cellid) %>%
++         dplyr::summarize(num_shots = n())
++ }
+> 
+> get_top_shots <- function(playerDFs, n) {
++     playersSpatial <- purrr::map(playerDFs, sf::st_as_sf, coords = c("locationX", "locationY"))
++     playersShotRich <- purrr::map(playersSpatial, get_richness)
++     richness_centroids <- purrr::map(playersShotRich, sf::st_centroid)
++     top_shots <- purrr::map(richness_centroids, dplyr::top_n, n, num_shots)
++     top_shotsXY <- purrr::map(top_shots, sf::st_coordinates)
++     top_shotsXYtib <- purrr::map(top_shotsXY, dplyr::as_tibble)
++     top_shots_DFs <- purrr::map2(top_shots, top_shotsXYtib, dplyr::bind_cols)
++     top_shots_DFs <- purrr::set_names(top_shots_DFs, names(playerDFs))
++     centcoords <- purrr::map(top_shots_DFs, sf::st_coordinates)
++     centmat <- purrr::reduce(centcoords, rbind)
++     mat_labels <- rep(names(top_shots_DFs), purrr::map(top_shots_DFs, nrow))
++     player_labels <- unique(purrr::simplify(purrr::map(playerDFs, "namePlayer")))
++     fnoutput <- list(top_shots_DFs, centmat, mat_labels, player_labels, playersSpatial, playersShotRich)
++     return(fnoutput)
++ }
+> playerDFsList <- list(
++     LD = luka, TY = trae, BS = bens,
++     LBJ = Leb, AH = AHou, LS = Spree,
++     JE = joel, JB = Jimmy, LJ = Larry, DR = DRuss,
++     KI = kyr, JT = Tat
++ )
+> shootingOv24 <- get_top_shots(playerDFsList, 24)
+There were 12 warnings (use warnings() to see them)
+> monok_new <- theme_monokai_full() %+replace%
++     theme(text = element_text(family = "NanumGothic", size = 18))
+> JTpoints <- shootingOv24[[5]]$JT %>% st_coordinates() %>% as_tibble()
+> ggplot(court_points) + geom_path(
++     aes(x = x, y = y, group = desc),
++     color = "black"
++ ) + coord_equal() + theme_monokai_full() +
++     theme(
++         text = element_text(size = 18, family = "NanumGothic"),
++         panel.grid = element_blank(),
++         axis.text = element_blank(),
++     ) + labs(x = "", y = "", title = "all shots") +
++     geom_point(
++         data = JTpoints, aes(X, Y + 45),
++         pch = 21,
++         color = "#007A33", fill = "#BA9653", size = 1, alpha = 0.7
++     ) +
++     
++     shootingOv24[[6]]$JT %>%
++     ggplot() +
++     geom_sf(aes(fill = log(num_shots))) +
++     scale_fill_scico(direction = -1, palette = "bamako", guide = FALSE) +
++     theme_monokai_full() + labs(title = "shot density") +
++     theme(text = element_text(size = 16, family = "NanumGothic")) +
++     plot_annotation(
++         title = "Jayson Tatum - 2019 season",
++         theme = monok_new
++     )
+There were 30 warnings (use warnings() to see them)
+> ggplot(court_points) + geom_path(
+There were 27 warnings (use warnings() to see them)
++     aes(x = x, y = y, group = desc),
++     color = "black"
++ ) + coord_equal() + theme_monokai_full() +
++     theme(
++         text = element_text(size = 18, family = "NanumGothic"),
++         panel.grid = element_blank(),
++         axis.text = element_blank(),
++     ) + labs(x = "", y = "", title = "all shots") +
++     geom_point(
++         data = LDpoints, aes(X, Y + 45),
++         pch = 21,
++         color = "#007A33", fill = "#BA9653", size = 1, alpha = 0.7
++     ) +
++     
++     shootingOv24[[6]]$LD %>%
++     ggplot() +
++     geom_sf(aes(fill = log(num_shots))) +
++     scale_fill_scico(direction = -1, palette = "bamako", guide = FALSE) +
++     theme_monokai_full() + labs(title = "shot density") +
++     theme(text = element_text(size = 16, family = "NanumGothic")) +
++     plot_annotation(
++         title = "Luca Doknic - 2019 season",
++         theme = monok_new
++     )
+Error in fortify(data) : object 'LDpoints' not found
+> monok_new <- theme_monokai_full() %+replace%
++     theme(text = element_text(family = "NanumGothic", size = 18))
+> LDpoints <- shootingOv24[[5]]$JT %>% st_coordinates() %>% as_tibble()
+> ggplot(court_points) + geom_path(
++     aes(x = x, y = y, group = desc),
++     color = "black"
++ ) + coord_equal() + theme_monokai_full() +
++     theme(
++         text = element_text(size = 18, family = "NanumGothic"),
++         panel.grid = element_blank(),
++         axis.text = element_blank(),
++     ) + labs(x = "", y = "", title = "all shots") +
++     geom_point(
++         data = LDpoints, aes(X, Y + 45),
++         pch = 21,
++         color = "#007A33", fill = "#BA9653", size = 1, alpha = 0.7
++     ) +
++     
++     shootingOv24[[6]]$LD %>%
++     ggplot() +
++     geom_sf(aes(fill = log(num_shots))) +
++     scale_fill_scico(direction = -1, palette = "bamako", guide = FALSE) +
++     theme_monokai_full() + labs(title = "shot density") +
++     theme(text = element_text(size = 16, family = "NanumGothic")) +
++     plot_annotation(
++         title = "Luca Doknic - 2019 season",
++         theme = monok_new
++     )
+There were 25 warnings (use warnings() to see them)
+> source("https://raw.githubusercontent.com/danlwarren/arc-extensions/master/nncluster.R
+There were 50 or more warnings (use warnings() to see the first 50)
++ source("https://raw.githubusercontent.com/danlwarren/arc-extensions/master/nncluster.R")
+Error: unexpected symbol in:
+"source("https://raw.githubusercontent.com/danlwarren/arc-extensions/master/nncluster.R
+source("https"
+> source("https://raw.githubusercontent.com/danlwarren/arc-extensions/master/nncluster.R")
+Loading required package: fields
+Warning message:
+In library(package, lib.loc = lib.loc, character.only = TRUE, logical.return = TRUE,  :
+  there is no package called ‘fields’
+> get_shots_ppo <- function(topShotsout) {
++     xymat <- purrr::pluck(topShotsout, 2)
++     player_labs <- purrr::pluck(topShotsout, 3)
++     O_stat <- nncluster(xymat, player_labs)
++     xy_topshots <- bind_cols(as_tibble(xymat), tibble(label = player_labs))
++     playList <- tibble(label = names(purrr::pluck(topShotsout, 1)), namePlayer = purrr::pluck(topShotsout, 4))
++     xy_topshots <- left_join(xy_topshots, playList)
++     min_O_val <- min(O_stat, na.rm = T)
++     max_O_val <- max(O_stat, na.rm = T)
++     O_mins <- as.vector(which(O_stat == min_O_val, arr.ind = TRUE))
++     O_maxes <- as.vector(which(O_stat == max_O_val, arr.ind = TRUE))
++     xy_minO <- filter(xy_topshots, label %in% names(O_stat)[O_mins]) %>%
++         mutate(val = paste0("least overlap ", "(", round(min_O_val, 2), ")"))
++     xy_maxO <- filter(xy_topshots, label %in% names(O_stat)[O_maxes]) %>%
++         mutate(val = paste0("most overlap ", "(", round(max_O_val, 2), ")"))
++     xy_summary <- bind_rows(xy_minO, xy_maxO)
++     
++     fnoutput <- list(O_stat, xy_summary, xy_topshots)
++     return(fnoutput)
++ }
+> 
+> shotSim24 <- get_shots_ppo(shootingOv24)
+[1] "Calculating LD vs TY"
+Error in rdist(xy[species == species.names[i], ], xy[species == species.names[i],  : 
+  could not find function "rdist"
+> ggplot(shotSim24[[2]], aes(x = X, y = Y + 45)) +
++     scale_fill_scico_d(name = "player", palette = "batlow") +
++     geom_path(
++         data = court_points,
++         aes(x = x, y = y, group = desc),
++         color = "black"
++     ) +
++     coord_equal() +
++     geom_point(
++         pch = 21, size = 3, color = "white",
++         aes(fill = namePlayer), position = "jitter"
++     ) +
++     xlim(-260, 260) +
++     theme_monokai_full() +
++     labs(title = "Most frequent shot locations (density-based)", x = "", y = "") +
++     theme(
++         text = element_text(size = 18, family = "NanumGothic"),
++         panel.grid = element_blank(),
++         axis.text = element_blank(),
++         plot.caption = element_text(color = "white"),
++         strip.background = element_blank(),
++         strip.text = element_text(color = "white"),
++         legend.position = "bottom"
++     ) +
++     facet_wrap(~val)
+Error in ggplot(shotSim24[[2]], aes(x = X, y = Y + 45)) : 
+  object 'shotSim24' not found
+> library(gt)
+Error in library(gt) : there is no package called ‘gt’
+> install.packages("gt")
+WARNING: Rtools is required to build R packages but is not currently installed. Please download and install the appropriate version of Rtools before proceeding:
+
+https://cran.rstudio.com/bin/windows/Rtools/
+Installing package into ‘C:/Users/Pc/AppData/Local/R/win-library/4.2’
+(as ‘lib’ is unspecified)
+also installing the dependencies ‘V8’, ‘bigD’, ‘bitops’, ‘juicyjuice’
+
+
+  There is a binary version available but the source version is later:
+   binary source needs_compilation
+gt  0.7.0  0.8.0             FALSE
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/V8_4.2.2.zip'
+Content type 'application/zip' length 6506030 bytes (6.2 MB)
+downloaded 6.2 MB
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/bigD_0.2.0.zip'
+Content type 'application/zip' length 1157329 bytes (1.1 MB)
+downloaded 1.1 MB
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/bitops_1.0-7.zip'
+Content type 'application/zip' length 31679 bytes (30 KB)
+downloaded 30 KB
+
+trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.2/juicyjuice_0.1.0.zip'
+Content type 'application/zip' length 1127568 bytes (1.1 MB)
+downloaded 1.1 MB
+
+package ‘V8’ successfully unpacked and MD5 sums checked
+package ‘bigD’ successfully unpacked and MD5 sums checked
+package ‘bitops’ successfully unpacked and MD5 sums checked
+package ‘juicyjuice’ successfully unpacked and MD5 sums checked
+
+The downloaded binary packages are in
+	C:\Users\Pc\AppData\Local\Temp\RtmpsB0yZL\downloaded_packages
+installing the source package ‘gt’
+
+trying URL 'https://cran.rstudio.com/src/contrib/gt_0.8.0.tar.gz'
+Content type 'application/x-gzip' length 1294059 bytes (1.2 MB)
+downloaded 1.2 MB
+
+* installing *source* package 'gt' ...
+** package 'gt' successfully unpacked and MD5 sums checked
+** using staged installation
+** R
+** data
+*** moving datasets to lazyload DB
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (gt)
+
+The downloaded source packages are in
+	‘C:\Users\Pc\AppData\Local\Temp\RtmpsB0yZL\downloaded_packages’
+> library(gt)
+> shotSim24[[1]] %>%
++     tibble::rownames_to_column() %>%
++     mutate_if(is.numeric, round, 2) %>%
++     gt() %>%
++     data_color(
++         columns = everything(),
++         colors = scales::col_numeric(
++             palette = scico(10, palette = "imola", direction = -1),
++             domain = NULL
++         )
++     )
