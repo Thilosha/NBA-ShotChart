@@ -1,0 +1,119 @@
+ library(nbastatR)
+ mavs <- teams_shots(
++     teams = "Dallas Mavericks",
++     seasons = 2019
++ )
+Error: The size of the connection buffer (131072) was not large enough
+to fit a complete line:
+  * Increase it by setting `Sys.setenv("VROOM_CONNECTION_SIZE")`
+> Sys.setenv(VROOM_CONNECTION_SIZE=500072)
+> mavs <- teams_shots(
++     teams = "Dallas Mavericks",
++     seasons = 2019
++ )
+Dallas Mavericks 2018-19 shot data
+Warning message:
+`funs()` was deprecated in dplyr 0.8.0.
+ℹ Please use a list of either functions or lambdas:
+
+# Simple named list: list(mean = mean, median = median)
+
+# Auto named with `tibble::lst()`: tibble::lst(mean, median)
+
+# Using lambdas list(~ mean(., trim = .2), ~ median(., na.rm = TRUE))
+ℹ The deprecated feature was likely used in the nbastatR package.
+  Please report the issue at <https://github.com/abresler/nbastatR/issues>.
+This warning is displayed once every 8 hours.
+Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated. 
+> hawks <- teams_shots(
++     teams = "Atlanta Hawks",
++     seasons = 2019
++ )
+Atlanta Hawks 2018-19 shot data                                                                                        
+
+> sixers <- teams_shots(
++     teams = "Philadelphia 76ers",
++     seasons = 2019
++ )
+Philadelphia 76ers 2018-19 shot data                                                                                   
+> knicks <- teams_shots(
++     teams = "New York Knicks",
++     seasons = 1999
++ )
+New York Knicks 1998-99 shot data                                                                                      
+> LAL <- teams_shots(
++     teams = "Los Angeles Lakers",
++     seasons = 2019
++ )
+Los Angeles Lakers 2018-19 shot data                                                                                   
+> nets <- teams_shots(
++     teams = "Brooklyn Nets",
++     seasons = 2019
++ )
+Brooklyn Nets 2018-19 shot data                                                                                        
+> bos <- teams_shots(
++     teams = "Boston Celtics",
++     seasons = 2019
++ )
+Boston Celtics 2018-19 shot data                                                                                       
+
+> library(dplyr)
+> luka <- mavs %>% filter(namePlayer == "Luka Doncic")
+> trae <- hawks %>% filter(namePlayer == "Trae Young")
+> bens <- sixers %>% filter(namePlayer == "Ben Simmons")
+> joel <- sixers %>% filter(namePlayer == "Joel Embiid")
+> Jimmy <- sixers %>% filter(namePlayer == "Jimmy Butler")
+> AHou <- knicks %>% filter(namePlayer == "Allan Houston")
+> Spree <- knicks %>% filter(namePlayer == "Latrell Sprewell")
+> Larry <- knicks %>% filter(namePlayer == "Larry Johnson")
+> Leb <- LAL %>% filter(namePlayer == "LeBron James")
+> DRuss <- nets %>% filter(namePlayer == "D'Angelo Russell")
+> Tat <- bos %>% filter(namePlayer == "Jayson Tatum")
+> kyr <- bos %>% filter(namePlayer == "Kyrie Irving")
+> 
+> library(ggplot2)
+> library(artyfarty)
+library(scico)
+library(extrafont)
+library(patchwork)
+source("https://raw.githubusercontent.com/toddwschneider/ballr/master/plot_court.R")
+source("https://raw.githubusercontent.com/toddwschneider/ballr/master/court_themes.R")
+plot_court() # created the court_points object we need
+court_points <- court_points %>% mutate_if(is.numeric, ~ . * 10)
+
+library(sf)
+courtsf <- sf::st_as_sfc(sf::st_bbox(c(xmin = -250, xmax = 250, ymax = 470, ymin = 0)))
+# grid
+courtgrid <- sf::st_make_grid(courtsf, what = "polygons", cellsize = 20) %>%
+  sf::st_cast("MULTIPOLYGON") %>%
+  sf::st_sf() %>%
+  dplyr::mutate(cellid = dplyr::row_number())
+
+
+ggplot() + geom_path(
+  data = court_points,
+  aes(x = x, y = y, group = desc),
+  color = "black"
+) + coord_equal() + theme_empty() +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  ) +
+  ggplot(courtgrid) + geom_sf() + geom_path(
+    data = court_points,
+    aes(x = x, y = y, group = desc),
+    color = "black"
+  ) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text = element_blank()
+  )
+
+# calculate n per grid square for points
+get_richness <- function(playersSpatialDFs) {
+  shot_richness <- courtgrid %>%
+    sf::st_join(playersSpatialDFs) %>%
+    dplyr::group_by(cellid) %>%
+    dplyr::summarize(num_shots = n())
+}
+
